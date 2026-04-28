@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Smart Debug & Fix Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0d0f17;
+    --surface:   #13161f;
+    --border:    #1e2233;
+    --accent:    #6366f1;
+    --accent2:   #8b5cf6;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --success:   #10b981;
+    --warn:      #f59e0b;
+    --danger:    #ef4444;
+    --code-bg:   #0a0c13;
+    --radius:    12px;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* ── Header ─────────────────────────────────── */
+  header {
+    background: linear-gradient(135deg, #1a1d2e 0%, #0d0f17 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 1.25rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .logo-icon {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+  }
+  header h1 { font-size: 1.1rem; font-weight: 600; }
+  header p  { font-size: 0.78rem; color: var(--muted); }
+
+  /* ── Layout ─────────────────────────────────── */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1.5rem 2rem;
+    min-height: calc(100vh - 75px);
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  /* ── Panel ───────────────────────────────────── */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .panel-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+  .panel-header .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+  }
+  .panel-body { padding: 1.25rem; flex: 1; display: flex; flex-direction: column; gap: 1rem; }
+
+  /* ── Form Elements ───────────────────────────── */
+  label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+  label span { color: var(--danger); margin-left: 2px; }
+
+  textarea, input[type="text"], select {
+    width: 100%;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    padding: 0.75rem 1rem;
+    resize: vertical;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+  textarea:focus, input[type="text"]:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+  }
+  textarea#code   { min-height: 200px; }
+  textarea#error  { min-height: 80px; font-family: 'JetBrains Mono', monospace; }
+  input#expected  { font-family: 'Inter', sans-serif; }
+
+  /* ── Language selector ───────────────────────── */
+  .row { display: flex; gap: 0.75rem; }
+  .row > * { flex: 1; }
+  select { font-family: 'Inter', sans-serif; cursor: pointer; }
+  select option { background: #1a1d2e; }
+
+  /* ── Button ──────────────────────────────────── */
+  button#run-btn {
+    width: 100%;
+    padding: 0.85rem;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: auto;
+  }
+  button#run-btn:hover  { opacity: 0.9; }
+  button#run-btn:active { transform: scale(0.98); }
+  button#run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  button#run-btn.loading .spinner { display: block; }
+  button#run-btn.loading .btn-text { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Output: empty state ─────────────────────── */
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    color: var(--muted);
+    text-align: center;
+    padding: 2rem;
+  }
+  .empty-state .icon { font-size: 2.5rem; opacity: 0.4; }
+  .empty-state p { font-size: 0.85rem; max-width: 240px; }
+
+  /* ── Result cards ────────────────────────────── */
+  #result { display: none; flex-direction: column; gap: 1rem; }
+
+  .result-meta {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .badge-syntax     { background: rgba(239,68,68,.15);  color: #f87171; border: 1px solid rgba(239,68,68,.3); }
+  .badge-runtime    { background: rgba(245,158,11,.15); color: #fbbf24; border: 1px solid rgba(245,158,11,.3); }
+  .badge-logical    { background: rgba(99,102,241,.15); color: #818cf8; border: 1px solid rgba(99,102,241,.3); }
+  .badge-contextual { background: rgba(16,185,129,.15); color: #34d399; border: 1px solid rgba(16,185,129,.3); }
+  .badge-high       { background: rgba(16,185,129,.15); color: #34d399; border: 1px solid rgba(16,185,129,.3); }
+  .badge-medium     { background: rgba(245,158,11,.15); color: #fbbf24; border: 1px solid rgba(245,158,11,.3); }
+  .badge-low        { background: rgba(239,68,68,.15);  color: #f87171; border: 1px solid rgba(239,68,68,.3); }
+
+  .card {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .card-label {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .card-content {
+    padding: 0.85rem;
+    font-size: 0.85rem;
+    line-height: 1.7;
+    color: #cbd5e1;
+  }
+
+  /* ── Code block ──────────────────────────────── */
+  .code-card .card-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .copy-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--muted);
+    font-size: 0.68rem;
+    padding: 0.2rem 0.5rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'Inter', sans-serif;
+  }
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .code-card pre { margin: 0; border-radius: 0; }
+  .code-card pre code.hljs { background: var(--code-bg); padding: 1rem; font-size: 0.8rem; }
+
+  /* ── Improvement tip ─────────────────────────── */
+  .tip-card .card-content {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+  }
+  .tip-icon { font-size: 1rem; flex-shrink: 0; margin-top: 2px; }
+
+  /* ── Error banner ────────────────────────────── */
+  #error-banner {
+    display: none;
+    background: rgba(239,68,68,.1);
+    border: 1px solid rgba(239,68,68,.3);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    color: #f87171;
+    font-size: 0.83rem;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-icon">🔍</div>
+  <div>
+    <h1>Smart Debug & Fix Agent</h1>
+    <p>Intelligent root cause analysis &amp; automated code fixing</p>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ── INPUT PANEL ── -->
+  <div class="panel">
+    <div class="panel-header"><div class="dot"></div>Input</div>
+    <div class="panel-body">
+
+      <div>
+        <label for="code">Code Snippet <span>*</span></label>
+        <textarea id="code" placeholder="Paste your Python or JavaScript code here…">def get_user_name(user):
+    return user['name']
+
+user = None
+print(get_user_name(user))</textarea>
+      </div>
+
+      <div>
+        <label for="error">Error Message <span>*</span></label>
+        <textarea id="error" placeholder="e.g. TypeError: 'NoneType' object is not subscriptable">TypeError: 'NoneType' object is not subscriptable</textarea>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="expected">Expected Behavior</label>
+          <input type="text" id="expected" placeholder="What should the code do? (optional)"
+                 value="Should safely handle missing user data">
+        </div>
+        <div style="max-width:130px">
+          <label for="language">Language</label>
+          <select id="language">
+            <option value="python" selected>Python</option>
+            <option value="javascript">JavaScript</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="error-banner"></div>
+
+      <button id="run-btn" onclick="runDebug()">
+        <div class="spinner"></div>
+        <span class="btn-text">⚡ Run Debug Agent</span>
+      </button>
+
+    </div>
+  </div>
+
+  <!-- ── OUTPUT PANEL ── -->
+  <div class="panel">
+    <div class="panel-header"><div class="dot"></div>Analysis Result</div>
+    <div class="panel-body" style="overflow-y:auto;">
+
+      <div class="empty-state" id="empty-state">
+        <div class="icon">🐛</div>
+        <p>Paste your code and error message, then click <strong>Run Debug Agent</strong>.</p>
+      </div>
+
+      <div id="result">
+
+        <div class="result-meta">
+          <span id="badge-bug-type" class="badge"></span>
+          <span id="badge-confidence" class="badge"></span>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Error</div>
+          <div class="card-content" id="out-error"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Root Cause</div>
+          <div class="card-content" id="out-root-cause"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Fix Explanation</div>
+          <div class="card-content" id="out-fix-explanation"></div>
+        </div>
+
+        <div class="card code-card">
+          <div class="card-label">
+            Corrected Code
+            <button class="copy-btn" onclick="copyCode()">Copy</button>
+          </div>
+          <pre><code id="out-corrected-code" class="language-python"></code></pre>
+        </div>
+
+        <div class="card tip-card">
+          <div class="card-label">💡 Improvement Tip</div>
+          <div class="card-content">
+            <span class="tip-icon">→</span>
+            <span id="out-improvement"></span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+async function runDebug() {
+  const code     = $('code').value.trim();
+  const error    = $('error').value.trim();
+  const expected = $('expected').value.trim();
+  const language = $('language').value;
+
+  // Clear previous state
+  $('error-banner').style.display = 'none';
+  $('result').style.display       = 'none';
+  $('empty-state').style.display  = 'flex';
+
+  if (!code || !error) {
+    showError('Code Snippet and Error Message are required.');
+    return;
+  }
+
+  const btn = $('run-btn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+
+  try {
+    const res = await fetch('/api/debug', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ code, error, expected_behavior: expected, language }),
+    });
+
+    const data = await res.json();
+
+    // Detect real server/validation errors vs. a successful agent response.
+    // The agent ALWAYS returns these 7 keys on success.
+    const AGENT_KEYS = ['error','bug_type','root_cause','fix_explanation','corrected_code','improvement','confidence'];
+    const isSuccess = res.ok && AGENT_KEYS.every(k => k in data);
+
+    if (!isSuccess) {
+      showError(data.error || data.message || 'Unexpected server error. Check the Flask console.');
+      return;
+    }
+
+    renderResult(data);
+
+  } catch (err) {
+    showError('Could not reach the debug server. Is app.py running?');
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+  }
+}
+
+function renderResult(d) {
+  // Meta badges
+  const bugBadgeClass = {
+    syntax: 'badge-syntax', runtime: 'badge-runtime',
+    logical: 'badge-logical', contextual: 'badge-contextual'
+  }[d.bug_type] || 'badge-runtime';
+
+  const confBadgeClass = {
+    high: 'badge-high', medium: 'badge-medium', low: 'badge-low'
+  }[d.confidence] || 'badge-medium';
+
+  $('badge-bug-type').textContent   = '⚙ ' + d.bug_type;
+  $('badge-bug-type').className     = 'badge ' + bugBadgeClass;
+  $('badge-confidence').textContent = '◎ ' + d.confidence + ' confidence';
+  $('badge-confidence').className   = 'badge ' + confBadgeClass;
+
+  // Text fields
+  $('out-error').textContent          = d.error;
+  $('out-root-cause').textContent     = d.root_cause;
+  $('out-fix-explanation').textContent = d.fix_explanation;
+  $('out-improvement').textContent    = d.improvement;
+
+  // Code block with syntax highlighting
+  const codeEl = $('out-corrected-code');
+  codeEl.className = 'language-' + ($('language').value === 'javascript' ? 'javascript' : 'python');
+  codeEl.textContent = d.corrected_code;
+  hljs.highlightElement(codeEl);
+
+  $('empty-state').style.display = 'none';
+  $('result').style.display      = 'flex';
+
+  // Smooth scroll to result on mobile
+  $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function showError(msg) {
+  const banner = $('error-banner');
+  banner.textContent   = '⚠ ' + msg;
+  banner.style.display = 'block';
+}
+
+function copyCode() {
+  const code = $('out-corrected-code').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+  });
+}
+
+// Allow Ctrl+Enter to trigger debug
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runDebug();
+});
+</script>
+</body>
+</html>

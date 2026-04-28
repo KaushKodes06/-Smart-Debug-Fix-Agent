@@ -1,0 +1,41 @@
+# =============================================================================
+# Smart Debug & Fix Agent — Dependency Manifest
+# =============================================================================
+# Runtime dependencies
+# ---------------------
+# The agent is built entirely on the Python standard library.
+# No third-party runtime packages are required.
+#
+# Standard library modules used:
+#   ast          — parse & validate Python source code snippets
+#   difflib      — generate unified diffs (before vs after, used internally)
+#   re           — regex-based error classification and code pattern matching
+#   json         — serialize/deserialize all input/output payloads
+#   textwrap     — dedent code snippets before AST parsing
+#   dataclasses  — DebugRequest / DebugResult data models
+#   typing       — type hints (Callable, etc.)
+#   argparse     — CLI argument parsing (main.py)
+#   pathlib      — resolve default input file path (main.py)
+#   sys          — stdin support and path manipulation
+#   os           — test path setup
+#
+# Python version requirement:
+#   Python >= 3.10
+#   (uses `X | Y` union type hints and `match` expression style dataclasses)
+#
+# =============================================================================
+# Development & testing dependencies
+# ------------------------------------
+
+pytest>=7.4          # test runner for tests/test_debug_agent.py
+
+# =============================================================================
+# Web UI dependencies
+# --------------------
+
+flask>=3.0           # lightweight web server for the interactive UI (app.py)
+
+# Optional — code quality (not required to run the agent)
+# ruff>=0.4          # fast linter + formatter (drop-in flake8 replacement)
+# mypy>=1.0          # static type checker
+# pyright>=1.1       # alternative static type checker

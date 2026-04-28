@@ -1,0 +1,5 @@
+{
+    "code": "def get_user_name(user):\n    return user['name']\n\nuser = None\nprint(get_user_name(user))",
+    "error": "TypeError: 'NoneType' object is not subscriptable",
+    "expected_behavior": "Should safely handle missing user data"
+}
